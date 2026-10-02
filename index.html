@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flowdesk: every customer email, with the right person</title>
+<meta name="description" content="Flowdesk is a shared inbox for small support teams. It reads each customer email, tags it and hands it to the right teammate in seconds.">
+<meta property="og:title" content="Flowdesk: every customer email, with the right person">
+<meta property="og:description" content="A shared inbox that triages itself. Free for 14 days.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b1220'/%3E%3Cpath d='M9 11h14M9 16h9M9 21h5' stroke='%2334d27b' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face { font-family: "Geist"; src: url(fonts/geist.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Geist Mono"; src: url(fonts/geist-mono.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+:root {
+  --ink: #0b1220;
+  --ink-2: #3d4757;
+  --ink-3: #5f6979;
+  --line: #e6e8ec;
+  --line-2: #d5d9e0;
+  --paper: #ffffff;
+  --paper-2: #f6f7f9;
+  --accent: #0b7a3d;
+  --accent-ink: #0a6b35;
+  --accent-soft: #e6f6ec;
+  --accent-bright: #34d27b;
+  --tag-billing: #fff1d6; --tag-billing-ink: #8a5a00;
+  --tag-bug: #fde4e4; --tag-bug-ink: #a12a2a;
+  --tag-sales: #e3ecff; --tag-sales-ink: #2347a8;
+  --tag-account: #efe6ff; --tag-account-ink: #5b34a8;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgb(11 18 32 / .06), 0 8px 24px -8px rgb(11 18 32 / .12);
+  --font: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --wrap: 1160px;
+  --ease: cubic-bezier(.16, 1, .3, 1);
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 80px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 400 17px/1.6 var(--font); -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+html { accent-color: var(--accent); caret-color: var(--accent); scrollbar-color: var(--line-2) var(--paper); }
+::selection { background: var(--accent-bright); color: var(--ink); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+img, svg { display: block; max-width: 100%; }
+a { color: inherit; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+h1, h2, h3 { margin: 0; letter-spacing: -0.03em; line-height: 1.08; font-weight: 600; text-wrap: balance; }
+p { margin: 0; }
+.wrap { width: min(var(--wrap), 100% - 40px); margin-inline: auto; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.skip { position: absolute; left: -9999px; top: 8px; background: var(--ink); color: #fff; padding: 8px 14px; border-radius: 8px; z-index: 100; }
+.skip:focus { left: 8px; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid transparent;
+  font: 500 15px/1 var(--font); text-decoration: none; cursor: pointer; white-space: nowrap;
+  transition: background .2s var(--ease), border-color .2s var(--ease), transform .2s var(--ease);
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-ink); }
+.btn-ghost { background: var(--paper); color: var(--ink); border-color: var(--line-2); }
+.btn-ghost:hover { border-color: var(--ink-3); }
+.btn[disabled] { opacity: .55; cursor: progress; }
+
+/* Nav */
+.nav {
+  position: sticky; top: 0; z-index: 50; background: rgb(255 255 255 / .9);
+  border-bottom: 1px solid transparent; transition: border-color .2s;
+}
+@supports (backdrop-filter: blur(8px)) { .nav { background: rgb(255 255 255 / .78); backdrop-filter: saturate(1.6) blur(12px); } }
+.nav.scrolled { border-bottom-color: var(--line); }
+.nav-in { display: flex; align-items: center; gap: 32px; height: 64px; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; letter-spacing: -0.02em; text-decoration: none; }
+.nav-links { display: flex; gap: 28px; list-style: none; margin: 0; padding: 0; font-size: 15px; color: var(--ink-2); }
+.nav-links a { text-decoration: none; }
+.nav-links a:hover { color: var(--ink); }
+.nav-cta { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+.nav-cta .signin { font-size: 15px; color: var(--ink-2); text-decoration: none; padding: 0 8px; }
+.nav-cta .btn { height: 36px; padding: 0 14px; font-size: 14px; }
+@media (max-width: 760px) { .nav-links, .nav-cta .signin { display: none; } }
+
+/* Hero */
+.hero { padding: 88px 0 0; }
+.hero h1 { font-size: clamp(2.6rem, 6.4vw, 4.75rem); max-width: 15ch; letter-spacing: -0.04em; }
+.hero h1 em { font-style: normal; }
+.hero-sub { margin-top: 22px; font-size: clamp(1.05rem, 1.6vw, 1.25rem); color: var(--ink-2); max-width: 54ch; }
+.signup { margin-top: 34px; display: flex; gap: 10px; max-width: 520px; flex-wrap: wrap; }
+.signup .field { flex: 1 1 260px; position: relative; }
+.signup input {
+  width: 100%; height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line-2);
+  font: 400 15px var(--font); color: var(--ink); background: var(--paper);
+  transition: border-color .2s, box-shadow .2s;
+}
+.signup input::placeholder { color: var(--ink-3); }
+.signup input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px rgb(11 18 32 / .08); }
+.signup input[aria-invalid="true"] { border-color: #c0392b; box-shadow: 0 0 0 3px rgb(192 57 43 / .1); }
+.form-note { margin-top: 12px; font-size: 14px; color: var(--ink-3); min-height: 1.6em; }
+.form-note.error { color: #b02a1f; }
+.form-note.ok { color: var(--accent-ink); }
+
+/* Live inbox demo */
+.demo-wrap { margin: 72px auto 0; width: min(1320px, 100vw - 40px); position: relative; left: 50%; transform: translateX(-50%); }
+.demo {
+  border: 1px solid var(--line); border-radius: 14px; background: var(--paper);
+  box-shadow: 0 1px 2px rgb(11 18 32 / .05), 0 30px 60px -30px rgb(11 18 32 / .25);
+  overflow: hidden;
+}
+.demo-bar { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper-2); font-size: 13px; color: var(--ink-3); }
+.demo-bar .stat { margin-left: auto; display: flex; gap: 18px; }
+.demo-bar .stat b { color: var(--ink); font-weight: 500; }
+.demo-body { display: grid; grid-template-columns: 210px 1fr 340px; min-height: 520px; }
+.demo-side { border-right: 1px solid var(--line); padding: 14px 10px; font-size: 14px; }
+.demo-side ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.demo-side li { display: flex; justify-content: space-between; padding: 7px 10px; border-radius: 6px; color: var(--ink-2); }
+.demo-side li.on { background: var(--paper-2); color: var(--ink); font-weight: 500; }
+.demo-side .count { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+.demo-side .side-h { margin: 18px 10px 6px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
+.demo-list { list-style: none; margin: 0; padding: 0; overflow: hidden; }
+.mail {
+  display: grid; grid-template-columns: 34px 1fr auto; gap: 4px 12px; align-items: start;
+  padding: 18px 22px; border-bottom: 1px solid var(--line);
+  animation: arrive .6s var(--ease) both;
+}
+.mail.fresh { background: linear-gradient(90deg, var(--accent-soft), transparent 70%); }
+@keyframes arrive { from { opacity: 0; transform: translateY(-14px); } }
+.avatar {
+  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 13px; font-weight: 600; color: #fff; grid-row: span 2;
+}
+.mail .from { font-weight: 500; font-size: 16px; }
+.mail .time { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+.mail .subj { grid-column: 2 / 4; font-size: 15px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mail .meta { grid-column: 2 / 4; display: flex; gap: 8px; align-items: center; min-height: 24px; margin-top: 4px; }
+.tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 5px; font-size: 12px; font-weight: 500; animation: pop .4s var(--ease) both; }
+.tag.billing { background: var(--tag-billing); color: var(--tag-billing-ink); }
+.tag.bug { background: var(--tag-bug); color: var(--tag-bug-ink); }
+.tag.sales { background: var(--tag-sales); color: var(--tag-sales-ink); }
+.tag.account { background: var(--tag-account); color: var(--tag-account-ink); }
+.assignee { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); animation: pop .4s .15s var(--ease) both; }
+.assignee i { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 10px; font-weight: 600; color: #fff; }
+.pending { font-size: 12px; color: var(--ink-3); font-family: var(--mono); }
+@keyframes pop { from { opacity: 0; transform: scale(.85); } }
+.demo-log { border-left: 1px solid var(--line); background: var(--paper-2); padding: 18px; font-size: 14px; }
+.demo-log .log-h { margin: 0 0 12px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); display: flex; align-items: center; gap: 8px; }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-bright); }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.log li { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; animation: arrive .5s var(--ease) both; }
+.log .rule { font-family: var(--mono); font-size: 13px; color: var(--ink-2); }
+.log .rule b { color: var(--ink); font-weight: 500; }
+.log .arrow { color: var(--accent); }
+.log .ms { float: right; font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.demo-caption { margin-top: 14px; font-size: 13px; color: var(--ink-3); text-align: center; }
+@media (max-width: 980px) {
+  .demo-body { grid-template-columns: 1fr 260px; }
+  .demo-side { display: none; }
+}
+@media (max-width: 680px) {
+  .demo-body { grid-template-columns: 1fr; min-height: 0; }
+  .demo-log { border-left: 0; border-top: 1px solid var(--line); }
+  .demo-log .log li:nth-child(n+3) { display: none; }
+  .demo-bar .stat span:nth-child(2) { display: none; }
+  .mail .subj { white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mail, .tag, .assignee, .log li { animation: none; }
+
+}
+
+/* Sections */
+section { padding: 128px 0 0; }
+.section-head { max-width: 640px; }
+.section-head h2 { font-size: clamp(2rem, 4vw, 3rem); }
+.section-head p { margin-top: 16px; font-size: 18px; color: var(--ink-2); }
+
+/* Features: alternating rows */
+.features { display: grid; gap: 96px; margin-top: 72px; }
+.feature { display: grid; grid-template-columns: 1fr 1.15fr; gap: 64px; align-items: center; }
+.feature:nth-child(even) .feature-copy { order: 2; }
+.feature-copy h3 { font-size: clamp(1.5rem, 2.4vw, 2rem); }
+.feature-copy p { margin-top: 14px; color: var(--ink-2); max-width: 46ch; }
+.feature-copy ul { margin: 22px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; font-size: 15px; color: var(--ink-2); }
+.feature-copy li { display: flex; gap: 10px; align-items: flex-start; }
+.feature-copy li svg { flex: none; margin-top: 4px; color: var(--accent); }
+.vignette { min-width: 0; }
+.panel { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+@media (max-width: 860px) {
+  .feature { grid-template-columns: 1fr; gap: 32px; }
+  .feature:nth-child(even) .feature-copy { order: 0; }
+}
+
+/* Vignette: rule builder */
+.rule-card { padding: 18px; font-size: 14px; display: grid; gap: 10px; }
+.rule-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rule-row .k { color: var(--ink-3); font-family: var(--mono); font-size: 12px; width: 44px; }
+.chip { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--paper); font-size: 13px; }
+.chip.val { font-family: var(--mono); font-size: 12px; background: var(--paper-2); }
+.rule-foot { display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-3); }
+.switch { width: 34px; height: 20px; border-radius: 99px; background: var(--accent); position: relative; }
+.switch::after { content: ""; position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+
+/* Vignette: workload */
+.load { padding: 18px; display: grid; gap: 14px; font-size: 14px; }
+.load-row { display: grid; grid-template-columns: 28px 70px 1fr 54px; align-items: center; gap: 12px; }
+.load-row .bar { height: 8px; border-radius: 99px; background: var(--paper-2); overflow: hidden; }
+.load-row .bar span { display: block; height: 100%; border-radius: inherit; background: var(--ink); }
+.load-row .n { font-family: var(--mono); font-size: 12px; color: var(--ink-3); text-align: right; }
+.load-row.away { color: var(--ink-3); }
+.load-row.away .bar span { background: var(--line-2); }
+.load-note { font-size: 13px; color: var(--ink-3); border-top: 1px solid var(--line); padding-top: 12px; }
+.load-note b { color: var(--accent-ink); font-weight: 500; }
+
+/* Vignette: SLA */
+.sla { padding: 6px 0; font-size: 14px; }
+.sla-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 12px 18px; border-bottom: 1px solid var(--line); }
+.sla-row:last-child { border-bottom: 0; }
+.sla-row .who { font-weight: 500; }
+.sla-row .clock { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.sla-row .clock.warn { color: #a15c00; }
+.sla-row .clock.late { color: #b02a1f; }
+.sla-row .clock.ok { color: var(--accent-ink); }
+.sla-row .what { color: var(--ink-3); font-size: 13px; }
+
+/* Quote */
+.quote { padding-top: 128px; }
+.quote figure { margin: 0; max-width: 880px; }
+.quote blockquote { margin: 0; font-size: clamp(1.6rem, 3.2vw, 2.4rem); line-height: 1.3; letter-spacing: -0.025em; font-weight: 500; text-wrap: balance; }
+.quote figcaption { margin-top: 28px; display: flex; align-items: center; gap: 14px; font-size: 15px; color: var(--ink-2); }
+.quote figcaption b { display: block; color: var(--ink); font-weight: 500; }
+
+/* Pricing */
+.billing-toggle { margin-top: 32px; display: inline-flex; padding: 4px; border-radius: 10px; background: var(--paper-2); border: 1px solid var(--line); }
+.billing-toggle button { height: 34px; padding: 0 14px; border: 0; border-radius: 7px; background: transparent; font: 500 14px var(--font); color: var(--ink-2); cursor: pointer; }
+.billing-toggle button[aria-pressed="true"] { background: var(--paper); color: var(--ink); box-shadow: var(--shadow); }
+.billing-toggle .save { color: var(--accent-ink); }
+.plans { margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.plan { padding: 32px; display: flex; flex-direction: column; gap: 18px; }
+.plan + .plan { border-left: 1px solid var(--line); }
+.plan.pop { background: var(--paper-2); }
+.plan h3 { font-size: 20px; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
+.plan .badge { font-size: 12px; font-weight: 500; letter-spacing: 0; color: var(--accent-ink); background: var(--accent-soft); padding: 3px 8px; border-radius: 5px; }
+.plan .desc { color: var(--ink-2); font-size: 15px; min-height: 3.2em; }
+.price { display: flex; align-items: baseline; gap: 6px; }
+.price .amt { font: 500 44px/1 var(--font); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.price .per { font-size: 14px; color: var(--ink-3); }
+.plan ul { list-style: none; margin: 0; padding: 18px 0 0; border-top: 1px solid var(--line); display: grid; gap: 10px; font-size: 15px; color: var(--ink-2); }
+.plan li { display: flex; gap: 10px; }
+.plan li svg { flex: none; margin-top: 5px; color: var(--accent); }
+.plan .btn { margin-top: auto; width: 100%; }
+@media (max-width: 900px) {
+  .plans { grid-template-columns: 1fr; }
+  .plan + .plan { border-left: 0; border-top: 1px solid var(--line); }
+}
+
+/* FAQ */
+.faq-grid { display: grid; grid-template-columns: 1fr 1.6fr; gap: 64px; }
+.faq-list { border-top: 1px solid var(--line); }
+.faq-list details { border-bottom: 1px solid var(--line); }
+.faq-list summary {
+  list-style: none; cursor: pointer; padding: 22px 40px 22px 0; position: relative;
+  font-weight: 500; font-size: 17px;
+}
+.faq-list summary::-webkit-details-marker { display: none; }
+.faq-list summary::after {
+  content: ""; position: absolute; right: 6px; top: 50%; width: 10px; height: 10px; margin-top: -7px;
+  border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3);
+  transform: rotate(45deg); transition: transform .3s var(--ease);
+}
+.faq-list details[open] summary::after { transform: rotate(-135deg); margin-top: -2px; }
+.faq-list details p { padding: 0 40px 24px 0; color: var(--ink-2); max-width: 62ch; }
+@media (max-width: 860px) { .faq-grid { grid-template-columns: 1fr; gap: 32px; } }
+
+/* Final CTA */
+.cta { padding: 128px 0; }
+.cta-box { background: var(--ink); color: #fff; border-radius: 18px; padding: clamp(40px, 7vw, 88px); display: grid; grid-template-columns: 1.3fr 1fr; gap: 48px; align-items: end; }
+.cta-box h2 { font-size: clamp(2rem, 4.4vw, 3.4rem); letter-spacing: -0.035em; }
+.cta-box p { margin-top: 16px; color: #b9c1ce; font-size: 18px; max-width: 42ch; }
+.cta-box .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.cta-box .btn-primary { background: var(--accent-bright); color: var(--ink); }
+.cta-box .btn-primary:hover { background: #5be096; }
+.cta-box .btn-ghost { background: transparent; color: #fff; border-color: #3a4558; }
+.cta-box .btn-ghost:hover { border-color: #8994a6; }
+.cta-box :focus-visible { outline-color: var(--accent-bright); }
+@media (max-width: 860px) { .cta-box { grid-template-columns: 1fr; } .cta-box .actions { justify-content: flex-start; } }
+
+/* Footer */
+footer { border-top: 1px solid var(--line); padding: 48px 0 40px; font-size: 14px; color: var(--ink-3); }
+.foot { display: grid; grid-template-columns: 2fr repeat(3, 1fr); gap: 32px; }
+.foot h2 { margin: 0 0 12px; font-size: 13px; font-weight: 500; color: var(--ink); }
+.foot ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.foot a { text-decoration: none; }
+.foot a:hover { color: var(--ink); }
+.foot-base { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.foot-base a { text-decoration: underline; }
+@media (max-width: 760px) { .foot { grid-template-columns: 1fr 1fr; } .foot > div:first-child { grid-column: 1 / -1; } }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-in">
+    <a href="#" class="logo" aria-label="Flowdesk home">
+      <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#0b1220"/><path d="M9 11h14M9 16h9M9 21h5" stroke="#34d27b" stroke-width="3" stroke-linecap="round"/></svg>
+      Flowdesk
+    </a>
+    <nav aria-label="Main">
+      <ul class="nav-links">
+        <li><a href="#product">Product</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </nav>
+    <div class="nav-cta">
+      <a href="#" class="signin">Sign in</a>
+      <a href="#signup" class="btn btn-primary">Start free trial</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <div class="hero">
+    <div class="wrap">
+      <h1>Every customer email, <em>with the right person</em>.</h1>
+      <p class="hero-sub">Flowdesk is the shared inbox that triages itself. It reads each message, tags it and hands it to the teammate who should answer, so nothing sits unread in support@.</p>
+
+      <form class="signup" id="signup" novalidate>
+        <div class="field">
+          <label for="email" class="sr-only">Work email</label>
+          <input id="email" name="email" type="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="signup-note">
+        </div>
+        <button class="btn btn-primary" type="submit">Start free trial</button>
+      </form>
+      <p class="form-note" id="signup-note" role="status">14 days free. No card needed. Set up in about ten minutes.</p>
+
+      <div class="demo-wrap" id="product">
+        <div class="demo" role="img" aria-label="Animated preview of the Flowdesk inbox: new emails arrive and are tagged and assigned to teammates automatically.">
+          <div class="demo-bar" aria-hidden="true">
+                        <span>support@northwind.co</span>
+            <span class="stat">
+              <span>Routed today <b class="mono" id="routed">128</b></span>
+              <span>Median first reply <b class="mono">4m 12s</b></span>
+            </span>
+          </div>
+          <div class="demo-body" aria-hidden="true">
+            <aside class="demo-side">
+              <ul>
+                <li class="on">Inbox <span class="count" id="inbox-count">4</span></li>
+                <li>Mine <span class="count">3</span></li>
+                <li>Unassigned <span class="count">0</span></li>
+                <li>Snoozed <span class="count">2</span></li>
+              </ul>
+              <div class="side-h">Teams</div>
+              <ul>
+                <li>Billing <span class="count">12</span></li>
+                <li>Product <span class="count">7</span></li>
+                <li>Sales <span class="count">4</span></li>
+              </ul>
+            </aside>
+            <ul class="demo-list" id="mail-list"></ul>
+            <div class="demo-log">
+              <div class="log-h"><span class="live-dot"></span> Routing log</div>
+              <ul class="log" id="log"></ul>
+            </div>
+          </div>
+        </div>
+        <p class="demo-caption">Sample data. Names and companies are fictional.</p>
+      </div>
+    </div>
+  </div>
+
+  <section aria-labelledby="how-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="how-title">Your inbox, sorted before you open it.</h2>
+        <p>Three small ideas that add up to a support queue nobody has to babysit.</p>
+      </div>
+
+      <div class="features">
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>Rules you can read out loud</h3>
+            <p>Write routing in plain words: when the subject mentions an invoice, send it to Billing. Flowdesk also learns from how your team re-assigns, and suggests new rules.</p>
+            <ul>
+              <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Match on sender, subject, body or customer plan</li>
+              <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Test a rule against last week's email before turning it on</li>
+            </ul>
+          </div>
+          <div class="vignette" aria-hidden="true">
+            <div class="panel rule-card">
+              <div class="rule-row"><span class="k">WHEN</span><span class="chip">Subject</span><span class="chip">contains</span><span class="chip val">"invoice" or "refund"</span></div>
+              <div class="rule-row"><span class="k">AND</span><span class="chip">Customer plan</span><span class="chip">is</span><span class="chip val">Business</span></div>
+              <div class="rule-row"><span class="k">THEN</span><span class="chip">Tag</span><span class="tag billing">Billing</span><span class="chip">Assign to</span><span class="chip">Billing team</span></div>
+              <div class="rule-foot"><span>Matched <span class="mono">41</span> emails last week</span><span class="switch"></span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>Fair, automatic assignment</h3>
+            <p>Flowdesk hands each email to whoever has the lightest queue and the right skills. People on holiday are skipped. Nobody cherry-picks, nobody drowns.</p>
+            <ul>
+              <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Round-robin or load-balanced, per team</li>
+              <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Reads working hours and out-of-office from your calendar</li>
+            </ul>
+          </div>
+          <div class="vignette" aria-hidden="true">
+            <div class="panel load">
+              <div class="load-row"><span class="avatar" style="width:28px;height:28px;font-size:11px;background:#2f6fde">AR</span><span>Ana</span><span class="bar"><span style="width:38%"></span></span><span class="n">6 open</span></div>
+              <div class="load-row"><span class="avatar" style="width:28px;height:28px;font-size:11px;background:#c2410c">SK</span><span>Sam</span><span class="bar"><span style="width:62%"></span></span><span class="n">10 open</span></div>
+              <div class="load-row"><span class="avatar" style="width:28px;height:28px;font-size:11px;background:#0b7a3d">PM</span><span>Priya</span><span class="bar"><span style="width:25%"></span></span><span class="n">4 open</span></div>
+              <div class="load-row away"><span class="avatar" style="width:28px;height:28px;font-size:11px;background:#6b7280">JL</span><span>Jonah</span><span class="bar"><span style="width:0"></span></span><span class="n">Away</span></div>
+              <p class="load-note">Next billing email goes to <b>Priya</b>: lightest queue, billing skill.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="feature">
+          <div class="feature-copy">
+            <h3>Reply-time targets that warn you early</h3>
+            <p>Set a first-reply target per customer tier. Flowdesk shows a quiet countdown on every conversation and nudges the team in Slack before a promise is broken, not after.</p>
+            <ul>
+              <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Business-hours aware, per time zone</li>
+              <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Weekly report on targets met, by team and by person</li>
+            </ul>
+          </div>
+          <div class="vignette" aria-hidden="true">
+            <div class="panel sla">
+              <div class="sla-row"><span class="who">Halden Studio</span><span class="clock ok">replied in 3m</span><span class="what">Can't export last month's report</span></div>
+              <div class="sla-row"><span class="who">Okafor &amp; Lane</span><span class="clock warn" id="sla-warn">12:48 left</span><span class="what">Seats for the new London team</span></div>
+              <div class="sla-row"><span class="who">Brightwater Dental</span><span class="clock">42:10 left</span><span class="what">Change the card on file</span></div>
+              <div class="sla-row"><span class="who">Maple &amp; Finch</span><span class="clock late">2m over</span><span class="what">Webhook keeps timing out</span></div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <div class="quote">
+    <div class="wrap">
+      <figure>
+        <blockquote>“We used to start every morning by sorting support@. Now it's already sorted, and we just answer. Our first replies went from hours to minutes in the first week.”</blockquote>
+        <figcaption>
+          <span class="avatar" style="background:#7c3aed" aria-hidden="true">LH</span>
+          <span><b>Lena Hart</b>Head of Support, Northwind (sample testimonial)</span>
+        </figcaption>
+      </figure>
+</div>
+  </div>
+
+  <section id="pricing" aria-labelledby="pricing-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="pricing-title">Simple pricing, per teammate.</h2>
+        <p>Every plan starts with a 14-day free trial. Customers and inboxes are always unlimited.</p>
+      </div>
+      <div class="billing-toggle" role="group" aria-label="Billing period">
+        <button type="button" data-period="monthly" aria-pressed="true">Monthly</button>
+        <button type="button" data-period="yearly" aria-pressed="false">Yearly <span class="save">−20%</span></button>
+      </div>
+
+      <div class="plans">
+        <div class="plan">
+          <h3>Starter</h3>
+          <p class="desc">For a founder and the first support hire.</p>
+          <p class="price"><span class="amt" data-monthly="19" data-yearly="15">$19</span><span class="per">per seat / month</span></p>
+          <a href="#signup" class="btn btn-ghost">Start free trial</a>
+          <ul>
+            <li><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>1 shared inbox</li>
+            <li><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>10 routing rules</li>
+            <li><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Round-robin assignment</li>
+          </ul>
+        </div>
+        <div class="plan pop">
+          <h3>Team <span class="badge">Most popular</span></h3>
+          <p class="desc">For support teams of 3 to 30 people.</p>
+          <p class="price"><span class="amt" data-monthly="39" data-yearly="31">$39</span><span class="per">per seat / month</span></p>
+          <a href="#signup" class="btn btn-primary">Start free trial</a>
+          <ul>
+            <li><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Unlimited inboxes and rules</li>
+            <li><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Load-balanced assignment</li>
+            <li><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Reply-time targets and Slack alerts</li>
+            <li><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Weekly reports</li>
+          </ul>
+        </div>
+        <div class="plan">
+          <h3>Business</h3>
+          <p class="desc">For larger teams with security reviews.</p>
+          <p class="price"><span class="amt">Custom</span></p>
+          <a href="#" class="btn btn-ghost">Talk to us</a>
+          <ul>
+            <li><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Everything in Team</li>
+            <li><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>SSO and audit log</li>
+            <li><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Dedicated onboarding</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq" aria-labelledby="faq-title">
+    <div class="wrap faq-grid">
+      <div class="section-head">
+        <h2 id="faq-title">Questions, answered.</h2>
+        <p>Something else? Email <a href="mailto:hello@flowdesk.example">hello@flowdesk.example</a> and a human replies the same day.</p>
+      </div>
+      <div class="faq-list">
+        <details>
+          <summary>Do I need to change my support email address?</summary>
+          <p>No. Keep support@yourcompany.com. You forward it to Flowdesk (or connect Google Workspace or Microsoft 365 directly) and replies still go out from your own address.</p>
+        </details>
+        <details>
+          <summary>How does Flowdesk decide who gets an email?</summary>
+          <p>First your rules, in the order you set them. If no rule matches, Flowdesk suggests a tag from the email's content and assigns it to the teammate with the lightest queue in that team. You can always reassign, and it learns from that.</p>
+        </details>
+        <details>
+          <summary>Is our customers' data used to train AI models?</summary>
+          <p>No. Email content is processed only to route your own inbox and is never used to train shared models. Data is encrypted in transit and at rest.</p>
+        </details>
+        <details>
+          <summary>What happens when the trial ends?</summary>
+          <p>You choose a plan, or your account pauses. Nothing is deleted for 30 days, so you can come back without losing your rules or history.</p>
+        </details>
+        <details>
+          <summary>Can we import our history from another help desk?</summary>
+          <p>Yes. Import from a CSV export or connect your old inbox and Flowdesk pulls in the last 12 months of conversations.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <div class="cta">
+    <div class="wrap">
+      <div class="cta-box">
+        <div>
+          <h2>Open support@ tomorrow and find it already sorted.</h2>
+          <p>Connect your inbox in ten minutes. Free for 14 days, no card needed.</p>
+        </div>
+        <div class="actions">
+          <a href="#signup" class="btn btn-primary">Start free trial</a>
+          <a href="#" class="btn btn-ghost">Book a 20-min demo</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <a href="#" class="logo" aria-label="Flowdesk home">
+          <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#0b1220"/><path d="M9 11h14M9 16h9M9 21h5" stroke="#34d27b" stroke-width="3" stroke-linecap="round"/></svg>
+          <span style="color:var(--ink)">Flowdesk</span>
+        </a>
+        <p style="margin-top:12px;max-width:32ch">The shared inbox that triages itself.</p>
+      </div>
+      <div><h2>Product</h2><ul><li><a href="#product">Overview</a></li><li><a href="#pricing">Pricing</a></li><li><a href="#">Changelog</a></li></ul></div>
+      <div><h2>Company</h2><ul><li><a href="#">About</a></li><li><a href="#">Careers</a></li><li><a href="#">Contact</a></li></ul></div>
+      <div><h2>Legal</h2><ul><li><a href="#">Privacy</a></li><li><a href="#">Terms</a></li><li><a href="#">Security</a></li></ul></div>
+    </div>
+    <div class="foot-base">
+      <span>© <span id="year">2026</span> Flowdesk. A fictional product.</span>
+      <span>Template by <a href="https://ncatelier.com">NC Atelier</a></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(() => {
+  // Sticky nav border
+  const nav = document.getElementById('nav');
+  const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 8);
+  onScroll(); addEventListener('scroll', onScroll, { passive: true });
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // Signup form (no backend: shows a confirmation)
+  const form = document.getElementById('signup');
+  const email = document.getElementById('email');
+  const note = document.getElementById('signup-note');
+  const defaultNote = note.textContent;
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const btn = form.querySelector('button');
+    if (!email.value.trim()) return fail('Enter your work email to start the trial.');
+    if (!email.checkValidity()) return fail('That email looks incomplete. Check for a typo, like a missing @ or domain.');
+    email.removeAttribute('aria-invalid');
+    btn.disabled = true; btn.textContent = 'Creating your inbox…';
+    setTimeout(() => {
+      btn.disabled = false; btn.textContent = 'Start free trial';
+      note.className = 'form-note ok';
+      note.textContent = `Check ${email.value.trim()} for your sign-in link. (Demo: nothing was sent.)`;
+      form.reset();
+    }, 900);
+  });
+  email.addEventListener('input', () => {
+    if (email.hasAttribute('aria-invalid')) { email.removeAttribute('aria-invalid'); note.className = 'form-note'; note.textContent = defaultNote; }
+  });
+  function fail(msg) {
+    email.setAttribute('aria-invalid', 'true');
+    note.className = 'form-note error'; note.textContent = msg; email.focus();
+  }
+
+  // Pricing toggle
+  const toggles = document.querySelectorAll('.billing-toggle button');
+  toggles.forEach(b => b.addEventListener('click', () => {
+    toggles.forEach(t => t.setAttribute('aria-pressed', String(t === b)));
+    const p = b.dataset.period;
+    document.querySelectorAll('.amt[data-monthly]').forEach(el => el.textContent = '$' + el.dataset[p]);
+    document.querySelectorAll('.per').forEach(el => { if (el.previousElementSibling?.dataset.monthly) el.textContent = p === 'yearly' ? 'per seat / month, billed yearly' : 'per seat / month'; });
+  }));
+
+  // Live inbox demo (sample data)
+  const people = {
+    Ana: '#2f6fde', Sam: '#c2410c', Priya: '#0f8f47', Leo: '#7c3aed'
+  };
+  const mails = [
+    { from: 'Marta Silva', co: 'Halden Studio', subj: 'Invoice #4471 charged twice this month', tag: 'billing', label: 'Billing', to: 'Priya', rule: 'subject ~ "invoice"' },
+    { from: 'Tom Becker', co: 'Okafor & Lane', subj: 'Export to CSV returns an empty file', tag: 'bug', label: 'Bug', to: 'Sam', rule: 'body ~ "error|empty|broken"' },
+    { from: 'Aisha Khan', co: 'Brightwater Dental', subj: 'Pricing for 25 seats on the Team plan?', tag: 'sales', label: 'Sales', to: 'Leo', rule: 'body ~ "pricing|quote"' },
+    { from: 'Owen Price', co: 'Maple & Finch', subj: 'How do I add a teammate to our workspace?', tag: 'account', label: 'Account', to: 'Ana', rule: 'suggested: account' },
+    { from: 'Chloé Martin', co: 'Atelier Rive', subj: 'Refund for the annual plan upgrade', tag: 'billing', label: 'Billing', to: 'Priya', rule: 'subject ~ "refund"' },
+    { from: 'Daniel Ruiz', co: 'Kestrel Labs', subj: 'Webhook keeps timing out since Tuesday', tag: 'bug', label: 'Bug', to: 'Sam', rule: 'body ~ "error|timeout"' },
+    { from: 'Grace Liu', co: 'Northfield Co', subj: 'Can we get a security questionnaire filled?', tag: 'sales', label: 'Sales', to: 'Leo', rule: 'plan = Business' },
+    { from: 'Ben Carter', co: 'Pebble Goods', subj: 'Change the email on our account', tag: 'account', label: 'Account', to: 'Ana', rule: 'suggested: account' }
+  ];
+  const hues = ['#334155', '#9a3412', '#065f46', '#1e40af', '#6b21a8', '#9f1239', '#0f766e', '#854d0e'];
+  const list = document.getElementById('mail-list');
+  const log = document.getElementById('log');
+  const routed = document.getElementById('routed');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let i = 0, count = 128;
+  const initials = n => n.split(' ').map(w => w[0]).join('').slice(0, 2);
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+  function addMail(m, idx, instant) {
+    const li = document.createElement('li');
+    li.className = 'mail' + (instant ? '' : ' fresh');
+    li.innerHTML = `
+      <span class="avatar" style="background:${hues[idx % hues.length]}">${initials(m.from)}</span>
+      <span class="from">${esc(m.from)}</span><span class="time">just now</span>
+      <span class="subj">${esc(m.subj)}</span>
+      <span class="meta"><span class="pending">routing…</span></span>`;
+    list.prepend(li);
+    while (list.children.length > 5) list.lastElementChild.remove();
+    [...list.children].slice(1).forEach((el, k) => {
+      el.classList.remove('fresh');
+      el.querySelector('.time').textContent = (k + 1) * 2 + 'm';
+    });
+    const route = () => {
+      li.querySelector('.meta').innerHTML = `<span class="tag ${m.tag}">${m.label}</span>
+        <span class="assignee"><i style="background:${people[m.to]}">${m.to[0]}</i>${m.to}</span>`;
+      const entry = document.createElement('li');
+      const ms = 180 + Math.round(Math.random() * 260);
+      entry.innerHTML = `<span class="ms">${ms}ms</span><div class="rule">${esc(m.rule)}</div>
+        <div class="rule"><span class="arrow">-&gt;</span> <b>${m.label}</b> · <b>${m.to}</b></div>`;
+      log.prepend(entry);
+      while (log.children.length > 4) log.lastElementChild.remove();
+      routed.textContent = ++count;
+      document.getElementById("inbox-count").textContent = list.children.length;
+    };
+    instant ? route() : setTimeout(route, 900);
+  }
+
+  // Seed with routed emails, then stream new ones
+  for (let k = 3; k >= 0; k--) addMail(mails[k], k, true);
+  i = 4;
+  if (!reduce) {
+    let timer = setInterval(tick, 2800);
+    function tick() { addMail(mails[i % mails.length], i, false); i++; }
+    document.addEventListener('visibilitychange', () => {
+      clearInterval(timer);
+      if (!document.hidden) timer = setInterval(tick, 2800);
+    });
+  }
+})();
+</script>
+</body>
+</html>
