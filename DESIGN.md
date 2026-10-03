@@ -135,7 +135,7 @@ components:
 
 # Design System: Flowdesk landing page
 
-All tokens live as CSS custom properties in the `:root` block at the top of `index.html` (`--ink`, `--accent`, `--line`, `--radius`, and so on). Change them there and the whole page follows. Fonts are self-hosted variable WOFF2 files in `fonts/`.
+All tokens live as CSS custom properties in the `:root` block at the top of `public/index.html` (`--ink`, `--accent`, `--line`, `--radius`, and so on). Change them there and the whole page follows. Fonts are self-hosted variable WOFF2 files in `public/fonts/`.
 
 ## Overview
 

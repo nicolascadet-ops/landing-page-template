@@ -19,17 +19,17 @@ A fast, single-page landing page for a software product, with a live product dem
 
 ## Run it locally
 
-Open `index.html` in your browser. That's it.
+Open `public/index.html` in your browser. That's it.
 
 Or serve it locally:
 
 ```bash
-npx serve .
+npx serve public
 ```
 
 ## Customise
 
-Everything is in `index.html`:
+Everything is in `public/index.html`:
 
 | What | Where |
 |---|---|
